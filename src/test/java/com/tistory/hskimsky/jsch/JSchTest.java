@@ -4,7 +4,12 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,15 +21,19 @@ import java.io.InputStream;
  */
 public class JSchTest {
 
-  @Test
-  public void jschTest() throws JSchException, IOException {
+  private static final Logger logger = LoggerFactory.getLogger(JSchTest.class);
+
+  private Session session;
+
+  @Before
+  public void setup() throws JSchException {
     JSch jsch = new JSch();
     String username = "YOUR_USERNAME";
     String host = "YOUR_HOSTNAME";
     // String username = "YOUR_USERNAME";
     // String host = "YOUR_HOSTNAME";
     int port = 22;
-    Session session = jsch.getSession(username, host, port);
+    session = jsch.getSession(username, host, port);
     // session.setUserInfo(new NfsUserInfo("USER_PASSWORD"));
     // Properties props = new Properties();
     // props.setProperty("StrictHostKeyChecking", "no");
@@ -36,7 +45,18 @@ public class JSchTest {
     // jsch.addIdentity("C:\\Users\\hskim\\.ssh\\id_rsa_cloudine_imac");
     // jsch.setKnownHosts("C:\\Users\\hskim\\.ssh\\known_hosts");
     session.connect();
+  }
 
+  @After
+  public void cleanup() {
+    if (session != null) {
+      session.disconnect();
+    }
+  }
+
+  @Ignore
+  @Test
+  public void jschTest() throws JSchException, IOException {
     ChannelExec channel = (ChannelExec) session.openChannel("exec");
     channel.setCommand("ls -alF /");
 
@@ -70,6 +90,29 @@ public class JSchTest {
       }
     }
     channel.disconnect();
-    session.disconnect();
+  }
+
+  @Test
+  public void sendTest() throws IOException, JSchException {
+    this.sendCommand("ls -alF");
+    this.sendCommand("ls -alF /");
+  }
+
+  private void sendCommand(String command) throws JSchException, IOException {
+    ChannelExec channel = (ChannelExec) session.openChannel("exec");
+    channel.setCommand(command);
+    // channel.setInputStream(null);
+    // channel.setErrStream(System.err);
+    InputStream is = channel.getInputStream();
+    channel.connect();
+
+    int bufferSize = 4096;
+    byte[] buffer = new byte[bufferSize];
+    int read;
+    while ((read = is.read(buffer)) != -1) {
+      System.out.println(new String(buffer, 0, read));
+    }
+    logger.info("ssh user@host \"{}\"", command);
+    channel.disconnect();
   }
 }
